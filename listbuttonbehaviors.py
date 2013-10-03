@@ -288,6 +288,10 @@ class TouchDownAndHoldable(Base):
         pass
 
 class DragNDroppable(object):
+    """
+    Borrowed HEAVILY (with special thanks) from Pavel Kostelník's widget, here: https://bitbucket.org/koszta5/kivydnd/src
+    """
+    
     droppable_zone_objects = ListProperty([])
     bound_zone_objects = ListProperty([])
     drag_opacity = NumericProperty(1.0)
