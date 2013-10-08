@@ -90,7 +90,7 @@ class Clickable(Base):
 
 class SwipeableLeft(Base):
     """ 
-    Borrowed HEAVILY (with special thanks) from kovak's widget, here: https://github.com/Kovak/KivyExamples/tree/master/iOSStyle_List_Delete_Button
+    Borrowed (with special thanks) from kovak's widget, here: https://github.com/Kovak/KivyExamples/tree/master/iOSStyle_List_Delete_Button
     """
     state = OptionProperty('normal', options=('normal', 'swiped left'))
     been_swiped_left = BooleanProperty(False)
