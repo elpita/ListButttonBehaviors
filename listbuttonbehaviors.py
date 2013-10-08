@@ -48,8 +48,12 @@ class Clickable(Base):
             return False
 
         if self.state == 'normal':
-            super(Base, self).on_touch_down(touch)
-            self._press_()
+            ret = super(Base, self).on_touch_down(touch)
+            
+            if not ret:
+                self._press_()
+            else:
+                return ret
 
         return super(Clickable, self).on_touch_down(touch)
 
@@ -274,7 +278,12 @@ class TouchDownAndHoldable(Base):
 
     def on_touch_down(self, touch):
         if self.state == 'normal':
-            Clock.schedule_interval(self.on_hold_down, self.hold_timeout)
+            ret = super(Base, self).on_touch_down(touch)
+
+            if not ret:
+                Clock.schedule_interval(self.on_hold_down, self.hold_timeout)
+            else:
+                return ret
             
             if not hasattr(self, 'trigger_press'):
                 self.state = 'down'
