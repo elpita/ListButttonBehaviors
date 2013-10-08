@@ -1,21 +1,27 @@
 from kivy.uix.relativelayout import RelativeLayout
-from kivy.properties import ObjectProperty, NumericProperty, ListProperty, OptionProperty, StringProperty, BooleanProperty
+from kivy.properties import ObjectProperty, NumericProperty, ListProperty, OptionProperty, StringProperty, BooleanProperty, BoundedNumericProperty
 from kivy.clock import Clock
 from kivy.lang import Builder
 
-class Base(RelativeLayout):
+class _OnStateClass(object):
+    """ A do-nothing-class that's only used for inheriting `on_state`. """
+
+    def __init__(self, **kwargs):
+        super(_OnStateClass, self).__init__(**kwargs)
+        
+    def on_state(self, *args):
+        pass
+
+class Base(RelativeLayout, _OnStateClass):
     background_normal = StringProperty('atlas://data/images/defaulttheme/button')
     background_down = StringProperty('atlas://data/images/defaulttheme/button_pressed')
-    text = StringProperty('')
     state = OptionProperty('normal', options=('normal'))
+    text = StringProperty('')
 
     def on_touch_down(self, touch):
         touch.grab(self)
         touch.ud[self] = True
         return True
-
-    def on_state(self, *args):
-        pass
 
 class Clickable(Base):
     state = OptionProperty('normal', options=('normal', 'down'))    
@@ -68,25 +74,29 @@ class Clickable(Base):
     def trigger_press(self, dt):
         if self.state == 'normal':
             self._do_press()
-            return self.dispatch('on_press_callback')
+            self.dispatch('on_press')
         else:
             return False
 
     def trigger_release(self, dt):
         if self.state == 'down':
-            return self.dispatch('on_release')
+            self.dispatch('on_release')
         else:
             return False
-        
-class SwipeableLeft(Base):    
+
+class SwipeableLeft(Base):
+    """ 
+    Borrowed HEAVILY (with special thanks) from kovak's widget, here: https://github.com/Kovak/KivyExamples/tree/master/iOSStyle_List_Delete_Button
+    """
     state = OptionProperty('normal', options=('normal', 'swiped left'))
     been_swiped_left = BooleanProperty(False)
+    delta_x_left = BoundedNumericProperty(-20, max=0)
 
     def __init__(self, **kwargs):
-        super(SwipeableLeft, self).__init__(**kwargs)
         self.register_event_type('on_swiped_left_in')
         self.register_event_type('on_swiped_left_out')
-    
+        super(SwipeableLeft, self).__init__(**kwargs)
+
     def on_state(self, instance, value):
         if ((value <> 'swiped left') and instance.been_swiped_left):
             instance.dispatch('on_swiped_left_in')
@@ -104,6 +114,7 @@ class SwipeableLeft(Base):
 
             if not self.been_swiped_left:
                 self.state = 'normal'
+
             return True
 
         else:
@@ -115,7 +126,7 @@ class SwipeableLeft(Base):
             assert(self in touch.ud)
             super(Base, self).on_touch_move(touch)
 
-            if ((touch.dx < -20) and not self.been_swiped_left):
+            if ((touch.dx < self.delta_x_left) and not self.been_swiped_left):
                 touch.ungrab(self)
                 self.state = 'swiped left'
                 return True
@@ -131,18 +142,21 @@ class SwipeableLeft(Base):
 class SwipeableRight(Base):
     state = OptionProperty('normal', options=('normal', 'swiped right'))
     been_swiped_right = BooleanProperty(False)
+    delta_x_right = BoundedNumericProperty(20, min=0)
 
     def __init__(self, **kwargs):
-        super(SwipeableRight, self).__init__(**kwargs)
         self.register_event_type('on_swiped_right_in')
         self.register_event_type('on_swiped_right_out')
+        super(SwipeableRight, self).__init__(**kwargs)
 
     def on_state(self, instance, value):
         if ((value <> 'swiped right') and instance.been_swiped_right):
             instance.dispatch('on_swiped_right')
+            instance.been_swiped_right = False
 
         elif value == 'swiped right':
             instance.dispatch('on_swiped_right')
+            instance.been_swiped_left = True
 
         return super(SwipeableRight, self).on_state(instance, value)
 
@@ -163,7 +177,7 @@ class SwipeableRight(Base):
             assert(self in touch.ud)
             super(Base, self).on_touch_move(touch)
 
-            if ((touch.dx > 20) and not self.been_swiped_right):
+            if ((touch.dx > self.delta_x_right) and not self.been_swiped_right):
                 self.state = 'swiped right'
                 touch.ungrab(self)
                 return True
@@ -179,19 +193,22 @@ class SwipeableRight(Base):
 class DoubleClickable(Base):
     state = OptionProperty('normal', options=('normal', 'double clicked'))
     been_double_clicked = BooleanProperty(False)
-    
+    double_tap_time = NumericProperty(0.250)
+
     def __init__(self, **kwargs):
-        super(DoubleClickable, self).__init__(**kwargs)
         self.register_event_type('on_double_click_in')
         self.register_event_type('on_double_click_out')
+        super(DoubleClickable, self).__init__(**kwargs)
 
     def on_state(self, instance, value):
         if ((value <> 'double clicked') and instance.been_double_clicked):
             instance.dispatch('on_double_click_out')
+            instance.been_double_clicked = False
 
         elif ((value == 'double clicked')):
             instance.dispatch('on_double_click_in')
-        
+            instance.been_double_clicked = True
+
         return super(DoubleClickable, self).on_state(instance, value)
     
     def on_touch_down(self, touch):            
@@ -201,7 +218,6 @@ class DoubleClickable(Base):
 
             if not self.been_double_clicked:
                 self.state = 'normal'
-
             return True
 
         else:
@@ -213,10 +229,9 @@ class DoubleClickable(Base):
             assert(self in touch.ud)
             super(Base, self).on_touch_up(touch)
 
-            if (touch.is_double_tap and (touch.double_tap_time < .250)):
+            if (touch.is_double_tap and (touch.double_tap_time < self.double_tap_time)):
                 touch.ungrab(self)
                 self.state = 'double clicked'
-
                 return True
             
         return super(DoubleClickable, self).on_touch_up(touch)
@@ -235,9 +250,9 @@ class TouchDownAndHoldable(Base):
     hold_time_limit = NumericProperty(0.2)
     
     def __init__(self, **kwargs):
-        super(TouchDownAndHoldable, self).__init__(**kwargs)
         self.register_event_type('on_hold_in')
         self.register_event_type('on_hold_out')
+        super(TouchDownAndHoldable, self).__init__(**kwargs)
 
     def on_hold_down(self, dt):
         if self.state == 'down':
@@ -249,24 +264,26 @@ class TouchDownAndHoldable(Base):
     def on_state(self, instance, value):
         if ((value <> 'held') and instance.been_held):
             instance.dispatch('on_hold_out')
+            instance.been_held = False
 
         elif ((value == 'held')):
             instance.dispatch('on_hold_in')
+            instance.been_held = True
         
         return super(TouchDownAndHoldable, self).on_state(instance, value)
 
     def on_touch_down(self, touch):
         if self.state == 'normal':
             Clock.schedule_interval(self.on_hold_down, self.hold_timeout)
+            
+            if not hasattr(self, 'trigger_press'):
+                self.state = 'down'
 
-            return super(TouchDownAndHoldable, self).on_touch_down(touch)
+        return super(TouchDownAndHoldable, self).on_touch_down(touch)
 
     def on_touch_move(self, touch):  
         if touch.grab_current is self:
             assert(self in touch.ud)
-
-            if self.state == 'normal':
-                self.state = 'down'
 
             if self.state == 'down':
                 if (self.hold_time > self.hold_time_limit):
@@ -277,9 +294,12 @@ class TouchDownAndHoldable(Base):
 
     def on_touch_up(self, touch):
         if touch.grab_current is self:
-            touch.ungrab(self)
-            self.state = 'normal'
-            return True
+            assert(self in touch.ud)
+
+            if self.state == 'dragged':
+                touch.ungrab(self)
+                self.state = 'normal'
+                return True
 
     def on_hold_in(self):
         pass
@@ -287,7 +307,7 @@ class TouchDownAndHoldable(Base):
     def on_hold_out(self):
         pass
 
-class DragNDroppable(object):
+class DragNDroppable(_OnStateClass):
     """
     Borrowed HEAVILY (with special thanks) from Pavel Kostelník's widget, here: https://bitbucket.org/koszta5/kivydnd/src
     """
@@ -300,23 +320,19 @@ class DragNDroppable(object):
     hold_time = NumericProperty(0.0)
 
     def __init__(self, **kwargs):
-        super(DragNDroppable, self).__init__(**kwargs)
-        
-        self.register_event_type("on_drag_start")
-        #self.register_event_type("on_being_dragged")
-        #self.register_event_type("on_drag_finish")
         self.register_event_type("on_pos_change")
-        #self.register_event_type("on_motion_over")
-        #self.register_event_type("on_motion_out")
+        self.register_event_type("on_drag_start")
+        super(DragNDroppable, self).__init__(**kwargs)
+        #self.register_event_type("on_drag_finish")
 
     def on_state(self, instance, value):
         container = instance.parent
         listview = instance.accordion
         
-        if ((value <> 'held') and listview.placeholder):
-            self.reparent(instance)
+        if ((value <> 'dragged') and listview.placeholder):
+            #self.reparent(instance)
 
-        elif ((value == 'held') and not listview.placeholder):
+        elif ((value == 'dragged') and not listview.placeholder):
             instance.opacity = self.drag_opacity
             self.dispatch('on_drag_start', instance)
             #instance.set_bound_axis_positions()
@@ -324,15 +340,12 @@ class DragNDroppable(object):
             #instance._old_parent = self.parent
             #instance._old_index = self.parent.children.index(self)
             
-            self.deparent(instance, container)
+            #self.deparent(instance, container)
 
-        #return super(DragNDroppable, self).on_state(instance, value)            
+        return super(DragNDroppable, self).on_state(instance, value)            
         
     def on_drag_start(self, instance):
-        container = instance.accordion.container
-        for child in container.children:
-            if ((type(child) is not Widget) and child.is_selected):
-                accordion.adapter.deselect_item_view(child)
+        pass
 
     def on_touch_down(self, touch):
         #super(Base, self).on_touch_down(touch)
@@ -341,9 +354,8 @@ class DragNDroppable(object):
 
         if self.state == 'down':
             Clock.schedule_interval(self.on_hold_down, .05)
+
             if self.hold_time >= 0.2:
-                print 'held'
-                # detect if the touch is short - has time and end (if not dispatch drag)
                 self.state = "dragged"
                 return True
 
@@ -351,11 +363,11 @@ class DragNDroppable(object):
 
     def on_touch_move(self, touch):
         #super(Base, self).on_touch_move(touch)
-        
+
         if touch.grab_current is self:
             assert(self in touch.ud)
-            #touch.apply_transform_2d(self.to_local)
-            if self.state == 'held':
+
+            if self.state == 'dragged':
                 self.center_y = touch.y
                 self.dispatch('on_pos_change')
                 return True
@@ -367,42 +379,12 @@ class DragNDroppable(object):
 
         if touch.grab_current is self:
             assert(self in touch.ud)
-            if self.state == 'held':
+            if self.state == 'dragged':
                 touch.ungrab(self)
                 self.state = 'normal'
                 return True
 
         return super(DragNDroppable, self).on_touch_up(touch)
-                
-    def deparent(self, widget, container):
-        #accordion = widget.accordion
-        listview = widget.accordion
-        listview.placeholder = Placeholder(size=widget.size,
-                                           size_hint_y=None,
-                                           index=widget.index,
-                                           opacity=0.0)
-
-        ix = container.children.index(widget)
-        container.remove_widget(widget)
-        container.add_widget(listview.placeholder, ix)
-        widget.size_hint_x = None
-        container.get_root_window().add_widget(widget)
-        return
-
-    def reparent(self, widget):
-        listview = widget.accordion
-        container = listview.container
-        placeholder = listview.placeholder
-        
-        if self.collide_widget(placeholder):
-            ix = container.children.index(placeholder)
-            container.remove_widget(placeholder)
-            container.get_root_window().remove_widget(widget)
-            container.add_widget(widget, ix)
-            widget.size_hint_x = 1.
-            widget.index = placeholder.index
-            listview.placeholder = None
-            return
             
     def on_pos_change(self, *args):
         #accordion = self.accordion
@@ -424,11 +406,6 @@ class DragNDroppable(object):
                 if ((self.center_y <= item.top) and (self.center_y <= placeholder.y)) or ((self.center_y >= item.y) and (self.center_y >= placeholder.top)):
                     container.insert(ix, container.pop(_ix))
 
-                    '''if placeholder.index > item.index:
-                        item.index += 1
-                    elif placeholder.index < item.index:
-                        item.index -= 1'''
-
                 #maybe scroll here
                 return
 
@@ -442,20 +419,6 @@ class Button_(Clickable):
 
         else:
             return super(Button_, self).on_touch_down(touch)
-
-    def on_touch_move(self, touch):
-        if self not in touch.ud:
-            return False
-
-        else:
-            return super(Button_, self).on_touch_move(touch)
-
-    def on_touch_up(self, touch):
-        if self not in touch.ud:
-            return False
-
-        else:
-            return super(Button_, self).on_touch_up(touch)
         
         
 Builder.load_string("""
