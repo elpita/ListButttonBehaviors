@@ -322,7 +322,7 @@ class DragNDroppable(_OnStateClass):
 
     def on_state(self, instance, value):
         container = instance.parent
-        listview = instance.accordion
+        listview = instance.listview
         
         if ((value <> 'dragged') and listview.placeholder):
         	instance.listview.reparent(instance)
