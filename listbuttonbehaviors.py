@@ -23,8 +23,8 @@ class Base(RelativeLayout, _OnStateClass):
             return False
         else:
             touch.grab(self)
-        	touch.ud[self] = True
-        	return True
+            touch.ud[self] = True
+            return True
 
 class Clickable(Base):
     state = OptionProperty('normal', options=('normal', 'down'))    
