@@ -19,9 +19,12 @@ class Base(RelativeLayout, _OnStateClass):
     text = StringProperty('')
 
     def on_touch_down(self, touch):
-        touch.grab(self)
-        touch.ud[self] = True
-        return True
+        if touch.is_mouse_scrolling:
+            return False
+        else:
+        	touch.grab(self)
+        	touch.ud[self] = True
+        	return True
 
 class Clickable(Base):
     state = OptionProperty('normal', options=('normal', 'down'))    
@@ -48,12 +51,12 @@ class Clickable(Base):
             return False
 
         if self.state == 'normal':
-            ret = super(Base, self).on_touch_down(touch)
+            sup = super(Base, self).on_touch_down(touch)
             
-            if not ret:
+            if not sup:
                 self._press_()
             else:
-                return ret
+                return sup
 
         return super(Clickable, self).on_touch_down(touch)
 
@@ -112,28 +115,19 @@ class SwipeableLeft(Base):
 
         return super(SwipeableLeft, self).on_state(instance, value)
 
-    def on_touch_down(self, touch):
-        if self.state == 'swiped left':
-            super(Base, self).on_touch_down(touch)
-
-            if not self.been_swiped_left:
-                self.state = 'normal'
-
-            return True
-
-        else:
-            return super(SwipeableLeft, self).on_touch_down(touch)
-
     def on_touch_move(self, touch):
-        
         if touch.grab_current is self:
             assert(self in touch.ud)
-            super(Base, self).on_touch_move(touch)
 
-            if ((touch.dx < self.delta_x_left) and not self.been_swiped_left):
-                touch.ungrab(self)
-                self.state = 'swiped left'
-                return True
+            if self.state == 'normal':
+                sup = super(Base, self).on_touch_move(touch)
+
+                if sup:
+                    return sup
+                elif ((touch.dx < self.delta_x_left) and not self.been_swiped_left):
+                    touch.ungrab(self)
+                    self.state = 'swiped left'
+                    return True
 
         return super(SwipeableLeft, self).on_touch_move(touch)
 
@@ -164,27 +158,19 @@ class SwipeableRight(Base):
 
         return super(SwipeableRight, self).on_state(instance, value)
 
-    def on_touch_down(self, touch):
-        if self.state == 'swiped right':
-            super(Base, self).on_touch_down(touch)
-
-            if not self.been_swiped_left:
-                self.state = 'normal'
-            return True
-
-        else:
-            return super(SwipeableRight, self).on_touch_down(touch)
-
     def on_touch_move(self, touch):
-
         if touch.grab_current is self:
             assert(self in touch.ud)
-            super(Base, self).on_touch_move(touch)
-
-            if ((touch.dx > self.delta_x_right) and not self.been_swiped_right):
-                self.state = 'swiped right'
-                touch.ungrab(self)
-                return True
+            
+            if self.state == 'normal':
+                sup = super(Base, self).on_touch_move(touch)
+                
+                if sup:
+                    return sup
+                elif ((touch.dx > self.delta_x_right) and not self.been_swiped_right):
+                    self.state = 'swiped right'
+                    touch.ungrab(self)
+                    return True
 
         return super(SwipeableRight, self).on_touch_move(touch)
 
@@ -214,30 +200,21 @@ class DoubleClickable(Base):
             instance.been_double_clicked = True
 
         return super(DoubleClickable, self).on_state(instance, value)
-    
-    def on_touch_down(self, touch):            
 
-        if self.state == 'double clicked':
-            super(Base, self).on_touch_down(touch)
-
-            if not self.been_double_clicked:
-                self.state = 'normal'
-            return True
-
-        else:
-            return super(DoubleClickable, self).on_touch_down(touch)
-        
     def on_touch_up(self, touch):
-
         if touch.grab_current is self:
             assert(self in touch.ud)
-            super(Base, self).on_touch_up(touch)
 
-            if (touch.is_double_tap and (touch.double_tap_time < self.double_tap_time)):
-                touch.ungrab(self)
-                self.state = 'double clicked'
-                return True
-            
+            if self.state == 'normal':
+            	sup = super(Base, self).on_touch_up(touch)
+
+            	if sup:
+            		return sup
+            	elif (touch.is_double_tap and (touch.double_tap_time < self.double_tap_time)):
+                	touch.ungrab(self)
+                	self.state = 'double clicked'
+                	return True
+
         return super(DoubleClickable, self).on_touch_up(touch)
 
     def on_double_click_in(self):
@@ -277,13 +254,16 @@ class TouchDownAndHoldable(Base):
         return super(TouchDownAndHoldable, self).on_state(instance, value)
 
     def on_touch_down(self, touch):
-        if self.state == 'normal':
-            ret = super(Base, self).on_touch_down(touch)
+        if touch.is_mouse_scrolling:
+            return False
 
-            if not ret:
+        if self.state == 'normal':
+            sup = super(Base, self).on_touch_down(touch)
+
+            if not sup:
                 Clock.schedule_interval(self.on_hold_down, self.hold_timeout)
             else:
-                return ret
+                return sup
             
             if not hasattr(self, 'trigger_press'):
                 self.state = 'down'
@@ -295,7 +275,11 @@ class TouchDownAndHoldable(Base):
             assert(self in touch.ud)
 
             if self.state == 'down':
-                if (self.hold_time > self.hold_time_limit):
+            	sup = super(Base, self).on_touch_move(touch)
+
+            	if sup:
+            		return sup
+                elif (self.hold_time > self.hold_time_limit):
                     self.state = 'held'
                     return True
 
@@ -305,9 +289,12 @@ class TouchDownAndHoldable(Base):
         if touch.grab_current is self:
             assert(self in touch.ud)
 
-            if self.state == 'dragged':
-                touch.ungrab(self)
-                self.state = 'normal'
+            if self.state == 'held':
+            	sup = super(Base, self).on_touch_up(touch)
+            	
+            	if not sup:
+            		touch.ungrab(self)
+                	self.state = 'normal'
                 return True
 
     def on_hold_in(self):
@@ -319,60 +306,46 @@ class TouchDownAndHoldable(Base):
 class DragNDroppable(_OnStateClass):
     """
     Borrowed HEAVILY (with special thanks) from Pavel Kostelník's widget, here: https://bitbucket.org/koszta5/kivydnd/src
+    To be used in conjunction with another ListButton Behavior.
     """
     
     droppable_zone_objects = ListProperty([])
     bound_zone_objects = ListProperty([])
     drag_opacity = NumericProperty(1.0)
-    drop_func = ObjectProperty(None)
-    drop_args = ListProperty([])
+    listview = ObjectProperty(None)
     hold_time = NumericProperty(0.0)
 
     def __init__(self, **kwargs):
-        self.register_event_type("on_pos_change")
         self.register_event_type("on_drag_start")
+        self.register_event_type("on_drag_finish")
         super(DragNDroppable, self).__init__(**kwargs)
-        #self.register_event_type("on_drag_finish")
 
     def on_state(self, instance, value):
         container = instance.parent
         listview = instance.accordion
         
         if ((value <> 'dragged') and listview.placeholder):
-            #self.reparent(instance)
+        	instance.listview.reparent(instance)
+            instance.dispatch('on_drag_end', instance)
 
         elif ((value == 'dragged') and not listview.placeholder):
-            instance.opacity = self.drag_opacity
-            self.dispatch('on_drag_start', instance)
-            #instance.set_bound_axis_positions()
-            #instance._old_drag_pos = self.pos
-            #instance._old_parent = self.parent
-            #instance._old_index = self.parent.children.index(self)
-            
-            #self.deparent(instance, container)
+            instance.dispatch('on_drag_start', instance)
+            instance.listview.deparent(instance)
 
         return super(DragNDroppable, self).on_state(instance, value)            
         
     def on_drag_start(self, instance):
         pass
+        #instance.opacity = self.drag_opacity
+        #instance.set_bound_axis_positions()
+        #instance._old_drag_pos = self.pos
+        #instance._old_parent = self.parent
+        #instance._old_index = self.parent.children.index(self)
 
-    def on_touch_down(self, touch):
-        #super(Base, self).on_touch_down(touch)
-        if self.state == 'normal':
-            self.state = 'down'
-
-        if self.state == 'down':
-            Clock.schedule_interval(self.on_hold_down, .05)
-
-            if self.hold_time >= 0.2:
-                self.state = "dragged"
-                return True
-
-        return super(DragNDroppable, self).on_touch_down(touch)
+    def on_drag_end(self, instance):
+    	pass
 
     def on_touch_move(self, touch):
-        #super(Base, self).on_touch_move(touch)
-
         if touch.grab_current is self:
             assert(self in touch.ud)
 
@@ -384,39 +357,15 @@ class DragNDroppable(_OnStateClass):
         return super(DragNDroppable, self).on_touch_move(touch)
 
     def on_touch_up(self, touch):
-        #super(Base, self).on_touch_up(touch)
-
         if touch.grab_current is self:
             assert(self in touch.ud)
+
             if self.state == 'dragged':
                 touch.ungrab(self)
                 self.state = 'normal'
                 return True
 
         return super(DragNDroppable, self).on_touch_up(touch)
-            
-    def on_pos_change(self, *args):
-        #accordion = self.accordion
-        listview = self.accordion
-        placeholder = listview.placeholder
-        if not placeholder:
-            return
-        
-        container = listview.container.children
-        _ix = container.index(placeholder)
-
-        for item in container:
-            if self.collide_widget(item):
-
-                if item is placeholder:
-                    continue
-
-                ix = container.index(item)
-                if ((self.center_y <= item.top) and (self.center_y <= placeholder.y)) or ((self.center_y >= item.y) and (self.center_y >= placeholder.top)):
-                    container.insert(ix, container.pop(_ix))
-
-                #maybe scroll here
-                return
 
 class Button_(Clickable):
     state = OptionProperty('normal', options=('down', 'normal'))
