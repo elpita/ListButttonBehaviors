@@ -20,9 +20,9 @@ class DragNDropListView(ListView):
         children = self.container.children
         adapter = self.adapter
         for child in children:
-            if ((type(child) is not Widget) and child.is_selected):
-                adapter.deselect_item_view(child)
-                return
+        	if ((type(child) is not Widget) and child.is_selected):
+        		adapter.deselect_item_view(child)
+        		return
 
     def on_drag_finish(self, widget):
         pass
@@ -30,15 +30,15 @@ class DragNDropListView(ListView):
     def on_pos_change(self, widget):
         placeholder = self.placeholder
         if not placeholder:
-            self.dispatch('on_motion_over', widget)
-            return
+        	self.dispatch('on_motion_over', widget)
+        	return
         
         children = self.container.children
         p_ix = children.index(placeholder)
 
         for child in children:
-            if (widget.collide_widget(child) and (child is not placeholder)):
-                c_ix = children.index(child)
+        	if (widget.collide_widget(child) and (child is not placeholder)):
+        		c_ix = children.index(child)
 
                 if ((widget.center_y <= child.top) and (widget.center_y <= placeholder.y)) or ((widget.center_y >= child.y) and (widget.center_y >= placeholder.top)):
                     children.insert(c_ix, children.pop(p_ix))
@@ -63,8 +63,8 @@ class DragNDropListView(ListView):
     def reparent(self, widget):
         placeholder = self.placeholder
         if not placeholder:
-            self.dispatch('on_motion_out', widget)
-            return
+        	self.dispatch('on_motion_out', widget)
+        	return
 
         container = self.container
         if placeholder.collide_widget(widget):
@@ -75,17 +75,15 @@ class DragNDropListView(ListView):
             widget.ix = placeholder.ix
             self.placeholder = None
 
-    def on_motion_over(self, widget):
-        children = self.container.children
-        
-        for child in children:
-        	if child.collide_point(*widget.center):
-        		
-        		if child.state <> 'down':
-        			child.state = 'down'
-        			
-        	else:
-        		child.state = 'normal'
-    
-    def on_motion_out(self, widget):
-        pass
+	def on_motion_over(self, widget):
+		children = self.container.children
+		
+		for child in children:
+			if child.collide_point(*widget.center):
+				if child.state <> 'down':
+					child.state = 'down'
+			else:
+				child.state = 'normal'
+				
+	def on_motion_out(self, widget):
+		pass
