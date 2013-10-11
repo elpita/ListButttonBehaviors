@@ -80,10 +80,10 @@ class DragNDropListView(ListView):
         
         for child in children:
         	if child.collide_point(*widget.center):
-
+        		
         		if child.state <> 'down':
         			child.state = 'down'
-        	
+        			
         	else:
         		child.state = 'normal'
     
