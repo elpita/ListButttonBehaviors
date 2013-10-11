@@ -13,6 +13,7 @@ class DragNDropListView(ListView):
         self.register_event_type("on_drag_finish")
         self.register_event_type("on_pos_change")
         self.register_event_type("on_motion_over")
+        self.register_event_type("on_motion_out")
         super(DragNDropListView, self).__init__(**kwargs)
 
     def on_drag_start(self, widget):
@@ -29,7 +30,8 @@ class DragNDropListView(ListView):
     def on_pos_change(self, widget):
         placeholder = self.placeholder
         if not placeholder:
-            pass
+            self.dispatch('on_motion_over', widget)
+            return
         
         children = self.container.children
         p_ix = children.index(placeholder)
@@ -61,7 +63,7 @@ class DragNDropListView(ListView):
     def reparent(self, widget):
         placeholder = self.placeholder
         if not placeholder:
-            self.dispatch('on_motion_over', widget)
+            self.dispatch('on_motion_out', widget)
             return
 
         container = self.container
@@ -74,4 +76,16 @@ class DragNDropListView(ListView):
             self.placeholder = None
 
     def on_motion_over(self, widget):
+        children = self.container.children
+        
+        for child in children:
+        	if child.collide_point(*widget.center):
+
+        		if child.state <> 'down':
+        			child.state = 'down'
+        	
+        	else:
+        		child.state = 'normal'
+    
+    def on_motion_out(self, widget):
         pass
