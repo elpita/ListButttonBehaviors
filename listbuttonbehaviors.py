@@ -26,6 +26,14 @@ class Base(RelativeLayout, _OnStateClass):
             touch.ud[self] = True
             return True
 
+    def on_touch_move(self, touch):
+        if touch.grab_current is not self:
+            return False
+
+    def on_touch_up(self, touch):
+        if touch.grab_current is not self:
+            return False
+
 class Clickable(Base):
     Clickable_gate_open = StringProperty('down')
     Clickable_gate_close = StringProperty('normal')
@@ -54,12 +62,12 @@ class Clickable(Base):
             return False
 
         if self.state == self.Clickable_gate_close:
-            sup = super(Base, self).on_touch_down(touch)
+            touched_children = super(Base, self).on_touch_down(touch)
             
-            if not sup:
+            if not touched_children:
                 self._press_()
             else:
-                return sup
+                return touched_children
 
         return super(Clickable, self).on_touch_down(touch)
 
@@ -119,16 +127,25 @@ class SwipeableLeft(Base):
             instance.been_swiped_left = True
 
         return super(SwipeableLeft, self).on_state(instance, value)
+        
+    def on_touch_down(self, touch):
+        if self.state == self.SwipeableLeft_gate_open:
+            touched_children = super(Base, self).on_touch_down(touch)
+            
+            if touched_children:
+                return touched_children
+        
+        return super(SwipeableLeft, self).on_touch_down(touch)
 
     def on_touch_move(self, touch):
         if touch.grab_current is self:
             assert(self in touch.ud)
 
             if self.state == self.SwipeableLeft_gate_close:
-                sup = super(Base, self).on_touch_move(touch)
+                moved_children = super(Base, self).on_touch_move(touch)
 
-                if sup:
-                    return sup
+                if moved_children:
+                    return moved_children
                 elif ((touch.dx < self.dx_) and not self.been_swiped_left):
                     touch.ungrab(self)
                     self.state = self.SwipeableLeft_gate_open
@@ -164,16 +181,25 @@ class SwipeableRight(Base):
             instance.been_swiped_left = True
 
         return super(SwipeableRight, self).on_state(instance, value)
+        
+    def on_touch_down(self, touch):
+        if self.state == self.SwipeableRight_gate_open:
+            touched_children = super(Base, self).on_touch_down(touch)
+            
+            if touched_children:
+                return touched_children
+                
+        return super(SwipeableRight, self).on_touch_down(touch)
 
     def on_touch_move(self, touch):
         if touch.grab_current is self:
             assert(self in touch.ud)
             
             if self.state == self.SwipeableRight_gate_close:
-                sup = super(Base, self).on_touch_move(touch)
+                moved_children = super(Base, self).on_touch_move(touch)
                 
-                if sup:
-                    return sup
+                if moved_children:
+                    return moved_children
                 elif ((touch.dx > self._dx) and not self.been_swiped_right):
                     self.state = self.SwipeableRight_gate_open
                     touch.ungrab(self)
@@ -209,16 +235,25 @@ class DoubleClickable(Base):
             instance.been_double_clicked = True
 
         return super(DoubleClickable, self).on_state(instance, value)
+        
+    def on_touch_down(self, touch):
+        if self.state == self.DoubleClickable_gate_open:
+            touched_children = super(Base, self).on_touch_down(touch)
+            
+            if touched_children:
+                return touched_children
+                
+        return super(DoubleClickable, self).on_touch_down(touch)
 
     def on_touch_up(self, touch):
         if touch.grab_current is self:
             assert(self in touch.ud)
 
             if self.state == self.DoubleClickable_gate_close:
-            	sup = super(Base, self).on_touch_up(touch)
+            	touched_children = super(Base, self).on_touch_up(touch)
 
-            	if sup:
-            		return sup
+            	if touched_children:
+            		return touched_children
             	elif (touch.is_double_tap and (touch.double_tap_time < self.double_tap_time)):
                 	touch.ungrab(self)
                 	self.state = self.DoubleClickable_gate_open
@@ -270,12 +305,12 @@ class TouchDownAndHoldable(Base):
             return False
 
         if self.state == self.TouchDownAndHoldable_gate_open:
-            sup = super(Base, self).on_touch_down(touch)
+            touched_children = super(Base, self).on_touch_down(touch)
 
-            if not sup:
+            if not touched_children:
                 Clock.schedule_interval(self.on_hold_down, self.hold_timeout)
             else:
-                return sup
+                return touched_children
             
             if not hasattr(self, 'trigger_press'):
                 self.state = self.TouchDownAndHoldable_transient_state
@@ -287,10 +322,10 @@ class TouchDownAndHoldable(Base):
             assert(self in touch.ud)
 
             if self.state == self.TouchDownAndHoldable_transient_state:
-            	sup = super(Base, self).on_touch_move(touch)
+            	moved_children = super(Base, self).on_touch_move(touch)
 
-            	if sup:
-            		return sup
+            	if moved_children:
+            		return moved_children
                 elif (self.hold_time > self.hold_time_limit):
                     self.state = self.TouchDownAndHoldable_gate_open
                     return True
@@ -302,12 +337,16 @@ class TouchDownAndHoldable(Base):
             assert(self in touch.ud)
 
             if self.state == self.TouchDownAndHoldable_gate_open:
-            	sup = super(Base, self).on_touch_up(touch)
+            	touched_children = super(Base, self).on_touch_up(touch)
             	
-            	if not sup:
+            	if touched_children:
+            	    return touched_children
+            	else:
             		touch.ungrab(self)
                 	self.state = self.TouchDownAndHoldable_gate_close
-                return True
+                    return True
+                    
+        return super(TouchDownAndHoldable, self).on_touch_up(touch)
 
     def on_hold_in(self):
         pass
