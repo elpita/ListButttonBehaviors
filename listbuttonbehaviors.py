@@ -5,6 +5,7 @@ from kivy.lang import Builder
 
 class _OnStateClass(object):
     """ A do-nothing-class that's only used for inheriting `on_state`. """
+    state = OptionProperty('normal', options=('normal'))
 
     def __init__(self, **kwargs):
         super(_OnStateClass, self).__init__(**kwargs)
@@ -15,7 +16,6 @@ class _OnStateClass(object):
 class Base(RelativeLayout, _OnStateClass):
     background_normal = StringProperty('atlas://data/images/defaulttheme/button')
     background_down = StringProperty('atlas://data/images/defaulttheme/button_pressed')
-    state = OptionProperty('normal', options=('normal'))
     text = StringProperty('')
 
     def on_touch_down(self, touch):
@@ -27,7 +27,9 @@ class Base(RelativeLayout, _OnStateClass):
             return True
 
 class Clickable(Base):
-    state = OptionProperty('normal', options=('normal', 'down'))    
+    Clickable_gate_open = StringProperty('down')
+    Clickable_gate_close = StringProperty('normal')
+    state = OptionProperty('normal', options=('normal', 'down'))
     _press_ = ObjectProperty(None)
     _release_ = ObjectProperty(None)
     press_timeout = NumericProperty(0.0625)
@@ -36,21 +38,22 @@ class Clickable(Base):
     def __init__(self, **kwargs):
         self.register_event_type('on_press')
         self.register_event_type('on_release')
-        self._press_ = Clock.create_trigger(self.trigger_press, self.press_timeout)
-        self._release_ = Clock.create_trigger(self.trigger_release, self.release_timeout)
         super(Clickable, self).__init__(**kwargs)
 
+        self._press_ = Clock.create_trigger(self.trigger_press, self.press_timeout)
+        self._release_ = Clock.create_trigger(self.trigger_release, self.release_timeout)
+
     def _do_press(self):
-        self.state = 'down'
+        self.state = self.Clickable_gate_open
 
     def _do_release(self):
-        self.state = 'normal'
+        self.state = self.Clickable_gate_close
 
     def on_touch_down(self, touch):
         if touch.is_mouse_scrolling:
             return False
 
-        if self.state == 'normal':
+        if self.state == self.Clickable_gate_close:
             sup = super(Base, self).on_touch_down(touch)
             
             if not sup:
@@ -64,7 +67,7 @@ class Clickable(Base):
         if touch.grab_current is self:
             assert(self in touch.ud)
 
-            if self.state == 'down':
+            if self.state == self.Clickable_gate_open:
                 self._do_release()
                 super(Base, self).on_touch_up(touch)
                 touch.ungrab(self)
@@ -79,14 +82,14 @@ class Clickable(Base):
         pass
 
     def trigger_press(self, dt):
-        if self.state == 'normal':
+        if self.state == self.Clickable_gate_close:
             self._do_press()
             self.dispatch('on_press')
         else:
             return False
 
     def trigger_release(self, dt):
-        if self.state == 'down':
+        if self.state == self.Clickable_gate_close:
             self.dispatch('on_release')
         else:
             return False
@@ -95,9 +98,11 @@ class SwipeableLeft(Base):
     """ 
     Borrowed (with special thanks) from kovak's widget, here: https://github.com/Kovak/KivyExamples/tree/master/iOSStyle_List_Delete_Button
     """
+    SwipeableLeft_gate_open = StringProperty('swiped left')
+    SwipeableLeft_gate_close = StringProperty('normal')
     state = OptionProperty('normal', options=('normal', 'swiped left'))
     been_swiped_left = BooleanProperty(False)
-    delta_x_left = BoundedNumericProperty(-20, max=0)
+    dx_ = BoundedNumericProperty(-20, max=0)
 
     def __init__(self, **kwargs):
         self.register_event_type('on_swiped_left_in')
@@ -105,11 +110,11 @@ class SwipeableLeft(Base):
         super(SwipeableLeft, self).__init__(**kwargs)
 
     def on_state(self, instance, value):
-        if ((value <> 'swiped left') and instance.been_swiped_left):
+        if ((value <> instance.SwipeableLeft_gate_open) and instance.been_swiped_left):
             instance.dispatch('on_swiped_left_in')
             instance.been_swiped_left = False
 
-        elif value == 'swiped left':
+        elif value == instance.SwipeableLeft_gate_open:
             instance.dispatch('on_swiped_left_out')
             instance.been_swiped_left = True
 
@@ -119,14 +124,14 @@ class SwipeableLeft(Base):
         if touch.grab_current is self:
             assert(self in touch.ud)
 
-            if self.state == 'normal':
+            if self.state == self.SwipeableLeft_gate_close:
                 sup = super(Base, self).on_touch_move(touch)
 
                 if sup:
                     return sup
-                elif ((touch.dx < self.delta_x_left) and not self.been_swiped_left):
+                elif ((touch.dx < self.dx_) and not self.been_swiped_left):
                     touch.ungrab(self)
-                    self.state = 'swiped left'
+                    self.state = self.SwipeableLeft_gate_open
                     return True
 
         return super(SwipeableLeft, self).on_touch_move(touch)
@@ -138,9 +143,11 @@ class SwipeableLeft(Base):
         pass
 
 class SwipeableRight(Base):
+    SwipeableRight_gate_open = StringProperty('swiped right')
+    SwipeableRight_gate_close = StringProperty('normal')
     state = OptionProperty('normal', options=('normal', 'swiped right'))
     been_swiped_right = BooleanProperty(False)
-    delta_x_right = BoundedNumericProperty(20, min=0)
+    _dx = BoundedNumericProperty(20, min=0)
 
     def __init__(self, **kwargs):
         self.register_event_type('on_swiped_right_in')
@@ -148,11 +155,11 @@ class SwipeableRight(Base):
         super(SwipeableRight, self).__init__(**kwargs)
 
     def on_state(self, instance, value):
-        if ((value <> 'swiped right') and instance.been_swiped_right):
+        if ((value <> instance.SwipeableRight_gate_open) and instance.been_swiped_right):
             instance.dispatch('on_swiped_right')
             instance.been_swiped_right = False
 
-        elif value == 'swiped right':
+        elif value == instance.SwipeableRight_gate_open:
             instance.dispatch('on_swiped_right')
             instance.been_swiped_left = True
 
@@ -162,13 +169,13 @@ class SwipeableRight(Base):
         if touch.grab_current is self:
             assert(self in touch.ud)
             
-            if self.state == 'normal':
+            if self.state == self.SwipeableRight_gate_close:
                 sup = super(Base, self).on_touch_move(touch)
                 
                 if sup:
                     return sup
-                elif ((touch.dx > self.delta_x_right) and not self.been_swiped_right):
-                    self.state = 'swiped right'
+                elif ((touch.dx > self._dx) and not self.been_swiped_right):
+                    self.state = self.SwipeableRight_gate_open
                     touch.ungrab(self)
                     return True
 
@@ -181,6 +188,8 @@ class SwipeableRight(Base):
         pass
 
 class DoubleClickable(Base):
+    DoubleClickable_gate_open = StringProperty('double clicked')
+    DoubleClickable_gate_close = StringProperty('normal')
     state = OptionProperty('normal', options=('normal', 'double clicked'))
     been_double_clicked = BooleanProperty(False)
     double_tap_time = NumericProperty(0.250)
@@ -191,11 +200,11 @@ class DoubleClickable(Base):
         super(DoubleClickable, self).__init__(**kwargs)
 
     def on_state(self, instance, value):
-        if ((value <> 'double clicked') and instance.been_double_clicked):
+        if ((value <> instance.DoubleClickable_gate_open) and instance.been_double_clicked):
             instance.dispatch('on_double_click_out')
             instance.been_double_clicked = False
 
-        elif ((value == 'double clicked')):
+        elif ((value == instance.DoubleClickable_gate_open)):
             instance.dispatch('on_double_click_in')
             instance.been_double_clicked = True
 
@@ -205,14 +214,14 @@ class DoubleClickable(Base):
         if touch.grab_current is self:
             assert(self in touch.ud)
 
-            if self.state == 'normal':
+            if self.state == self.DoubleClickable_gate_close:
             	sup = super(Base, self).on_touch_up(touch)
 
             	if sup:
             		return sup
             	elif (touch.is_double_tap and (touch.double_tap_time < self.double_tap_time)):
                 	touch.ungrab(self)
-                	self.state = 'double clicked'
+                	self.state = self.DoubleClickable_gate_open
                 	return True
 
         return super(DoubleClickable, self).on_touch_up(touch)
@@ -224,6 +233,9 @@ class DoubleClickable(Base):
         pass
 
 class TouchDownAndHoldable(Base):
+    TouchDownAndHoldable_gate_open = StringProperty('held')
+    TouchDownAndHoldable_gate_close = StringProperty('normal')
+    TouchDownAndHoldable_transient_state = StringProperty('down')
     state = OptionProperty('normal', options=('normal', 'down', 'held'))
     been_held = BooleanProperty(False)
     hold_timeout = NumericProperty(0.05)
@@ -236,18 +248,18 @@ class TouchDownAndHoldable(Base):
         super(TouchDownAndHoldable, self).__init__(**kwargs)
 
     def on_hold_down(self, dt):
-        if self.state == 'down':
+        if self.state == self.TouchDownAndHoldable_transient_state:
             self.hold_time += dt
         else:
             self.hold_time = 0.0
             return False
 
     def on_state(self, instance, value):
-        if ((value <> 'held') and instance.been_held):
+        if ((value <> instance.TouchDownAndHoldable_gate_open) and instance.been_held):
             instance.dispatch('on_hold_out')
             instance.been_held = False
 
-        elif ((value == 'held')):
+        elif ((value == instance.TouchDownAndHoldable_gate_open)):
             instance.dispatch('on_hold_in')
             instance.been_held = True
         
@@ -257,7 +269,7 @@ class TouchDownAndHoldable(Base):
         if touch.is_mouse_scrolling:
             return False
 
-        if self.state == 'normal':
+        if self.state == self.TouchDownAndHoldable_gate_open:
             sup = super(Base, self).on_touch_down(touch)
 
             if not sup:
@@ -266,7 +278,7 @@ class TouchDownAndHoldable(Base):
                 return sup
             
             if not hasattr(self, 'trigger_press'):
-                self.state = 'down'
+                self.state = self.TouchDownAndHoldable_transient_state
 
         return super(TouchDownAndHoldable, self).on_touch_down(touch)
 
@@ -274,13 +286,13 @@ class TouchDownAndHoldable(Base):
         if touch.grab_current is self:
             assert(self in touch.ud)
 
-            if self.state == 'down':
+            if self.state == self.TouchDownAndHoldable_transient_state:
             	sup = super(Base, self).on_touch_move(touch)
 
             	if sup:
             		return sup
                 elif (self.hold_time > self.hold_time_limit):
-                    self.state = 'held'
+                    self.state = self.TouchDownAndHoldable_gate_open
                     return True
 
         return super(TouchDownAndHoldable, self).on_touch_move(touch)
@@ -289,12 +301,12 @@ class TouchDownAndHoldable(Base):
         if touch.grab_current is self:
             assert(self in touch.ud)
 
-            if self.state == 'held':
+            if self.state == self.TouchDownAndHoldable_gate_open:
             	sup = super(Base, self).on_touch_up(touch)
             	
             	if not sup:
             		touch.ungrab(self)
-                	self.state = 'normal'
+                	self.state = self.TouchDownAndHoldable_gate_close
                 return True
 
     def on_hold_in(self):
@@ -308,10 +320,13 @@ class DragNDroppable(_OnStateClass):
     Borrowed HEAVILY (with special thanks) from Pavel Kostelník's widget, here: https://bitbucket.org/koszta5/kivydnd/src
     To be used in conjunction with another ListButton Behavior.
     """
-    
+    DragNDroppable_gate_open = StringProperty('dragged')
+    DragNDroppable_gate_close = StringProperty('dropped')
+    state = OptionProperty('dropped', options=('dragged', 'dropped'))
     droppable_zone_objects = ListProperty([])
     bound_zone_objects = ListProperty([])
     drag_opacity = NumericProperty(1.0)
+    been_dragged = BooleanProperty(False)
     listview = ObjectProperty(None)
     hold_time = NumericProperty(0.0)
 
@@ -324,13 +339,15 @@ class DragNDroppable(_OnStateClass):
         container = instance.parent
         listview = instance.listview
         
-        if ((value <> 'dragged') and listview.placeholder):
-        	instance.listview.reparent(instance)
+        if ((value <> instance.DragNDroppable_gate_open) and instance.been_dragged):
+        	listview.reparent(instance)
             instance.dispatch('on_drag_end', instance)
+            instance.been_dragged = False
 
-        elif ((value == 'dragged') and not listview.placeholder):
+        elif ((value == instance.DragNDroppable_gate_open) and not instance.been_dragged):
             instance.dispatch('on_drag_start', instance)
-            instance.listview.deparent(instance)
+            listview.deparent(instance)
+            instance.been_dragged = True
 
         return super(DragNDroppable, self).on_state(instance, value)            
         
@@ -349,7 +366,7 @@ class DragNDroppable(_OnStateClass):
         if touch.grab_current is self:
             assert(self in touch.ud)
 
-            if self.state == 'dragged':
+            if self.state == self.DragNDroppable_gate_open:
                 self.center_y = touch.y
                 self.dispatch('on_pos_change')
                 return True
@@ -360,15 +377,14 @@ class DragNDroppable(_OnStateClass):
         if touch.grab_current is self:
             assert(self in touch.ud)
 
-            if self.state == 'dragged':
+            if self.state == self.DragNDroppable_gate_open:
                 touch.ungrab(self)
-                self.state = 'normal'
+                self.state = self.DragNDroppable_gate_close
                 return True
 
         return super(DragNDroppable, self).on_touch_up(touch)
 
 class Button_(Clickable):
-    state = OptionProperty('normal', options=('down', 'normal'))
     press_timeout = NumericProperty(0)
 
     def on_touch_down(self, touch):
