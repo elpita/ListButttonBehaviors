@@ -273,7 +273,7 @@ class TouchDownAndHoldable(Base):
     TouchDownAndHoldable_transient_state = StringProperty('down')
     state = OptionProperty('normal', options=('normal', 'down', 'held'))
     been_held = BooleanProperty(False)
-    hold_timeout = NumericProperty(0.05)
+    hold_timeout = NumericProperty(0.1)
     hold_time = NumericProperty(0.0)
     hold_time_limit = NumericProperty(0.2)
     
