@@ -454,7 +454,7 @@ Builder.load_string("""
             size: self.size
             pos: self.pos
 
-    RelativeLayout:
+    FloatLayout:
         size: root.size
         pos: root.pos
         
@@ -462,7 +462,7 @@ Builder.load_string("""
             id: layout_id
             orientation: 'horizontal'
             pos_hint: {'center_x': .5, 'center_y': .5}
-            size_hint: .75, .75
+            size_hint: 0.9, 0.75
             
             Label:
                 id: label_id
